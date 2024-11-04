@@ -31,9 +31,9 @@ class RTree{
         if(root == nullptr) root = temp;
         else{
             if(root->box.contain(box1)){
-                insertInPoint(root,p);
+                insertInPoint(root,p,box1);
             }
-            else insertOutPoint(root,p);
+            else insertOutPoint(root,p,box1);
         }
     }
 
@@ -50,44 +50,47 @@ class RTree{
     }
 
     private:
-    void insertInPoint(RTreeNode* curr,pair<double,double> p){
-
+    void insertInPoint(RTreeNode* curr,pair<double,double> p, MBR box1){
+        if(curr->isLeaf) curr->locations.emplace_back(p);
+        bool inside = false;
+        for(int i=0;i<curr->children.size();i++){
+            if(curr->children[i]->box.contain(box1)){
+                insertInPoint(curr->children[i],p,box1);
+                inside = true;
+                break;
+            }
+        }
+        if(!inside){
+            insertOutPoint(chooseChild(curr,p,box1),p,box1);
+        }
     }
 
-    void insertOutPoint(RTreeNode* curr, pair<double,double> p){
-        
+    void insertOutPoint(RTreeNode* curr, pair<double,double> p, MBR box1){
+        curr->box.expand(p);
+        if(curr->isLeaf) curr->locations.emplace_back(p);
+
+        insertOutPoint(chooseChild(curr,p,box1),p,box1);
     }
 
-    RTreeNode* chooseLeaf(RTreeNode* node, const MBR& box){
-        // if(node->isLeaf) return node;
+    RTreeNode* chooseChild(RTreeNode* node,pair<double,double> p, MBR box1){
+        RTreeNode* Child = node->children[0];
+        RTreeNode* waste = Child;
+        waste->box.expand(p);
+        double minAreaDiff = waste->box.area()-Child->box.area();
+        for(int i=0;i<node->children.size();i++){
+            RTreeNode* temp = node->children[i];
+            double initArea = temp->box.area();
+            temp->box.expand(p);
+            double finArea = temp->box.area();
 
-        // RTreeNode* bestChild = nullptr;
-        // RTreeNode* container = nullptr;
+            double diffArea = finArea-initArea;
 
-        // double minIncrease = 0;
-        // double minArea = node->boxes[0].area();
+            if(diffArea < minAreaDiff){
+                Child = node->children[i];
+                minAreaDiff = diffArea;
+            }
+        }
 
-        // for(int i=0; i<node->boxes.size();i++){
-        //     MBR curr = node->boxes[i];
-        //     double currArea = curr.area();
-
-        //     if(curr.contain(box)){
-        //         if(currArea < minArea){
-        //             minArea = currArea;
-        //             container = node->children[i];
-        //         }
-        //     }
-
-        //     curr.expand(box);
-        //     double expandedArea = curr.area();
-        //     double AreaDiff = expandedArea;
-
-        //     if(AreaDiff < minIncrease){
-        //         minIncrease = AreaDiff;
-        //         bestChild = node->children[i];
-        //     }
-        // }
-
-        // chooseLeaf(bestChild,box);
+        return Child;
     }
 };
